@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2023/11/08 12:39:25.000.744,=C:\proyectos\delphi\sageretail\bertomeufacturas\Unit1.pas</Transaction>
+    <Transaction>2023/11/08 12:39:49.000.181,C:\proyectos\delphi\sageretail\bertomeufacturas\Unit1.pas=C:\proyectos\delphi\sageretail\bertomeufacturas\sendMail.pas</Transaction>
+  </Transactions>
+</BorlandProject>

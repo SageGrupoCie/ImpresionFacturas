@@ -1,0 +1,657 @@
+unit DatosModulo;
+
+interface
+
+uses
+  SysUtils, Classes, DB, ADODB,Dialogs,Types,ExtCtrls,Buttons,windows,
+  Printers,Controls,AdoConEd,Graphics,Forms,IniFiles,IdSMTP,IdMessage,IdException,
+  IdAttachmentFile; //Registry;
+
+Type TCopia = Record
+        FontName : String;
+       // FontStyle: String;
+        FontSize : Integer;
+        Angulo   : Integer;
+        Texto    : String;
+        Color    : TColor;
+        Orden    : integer;//o no imprimir, 1 despues de Fra, 2 Despues de albaranes
+     end;
+
+type
+  TModuloDatos = class(TDataModule)
+    Logic: TADOConnection;
+    TablaAux: TADOQuery;
+    TablaFacturas: TADOQuery;
+    SourceFacturas: TDataSource;
+    TablaAlbaranes: TADOQuery;
+    SourceAlbaranes: TDataSource;
+    TablaEmail: TADOQuery;
+    TablaAlbaranesEjercicioAlbaran: TSmallintField;
+    TablaAlbaranesSerieAlbaran: TStringField;
+    TablaAlbaranesNumeroAlbaran: TIntegerField;
+    TablaAlbaranesFechaAlbaran: TDateTimeField;
+    TablaAux2: TADOQuery;
+
+    procedure LeerIni;
+    procedure RepasaRutaTemporales;
+    procedure PopUpCie(tiempo: Integer;Texto1: string);
+    procedure EscribeIni;
+    procedure Conectar(Pide:Boolean);
+    function ExisteImpresoraWin(Impresora: string): Integer;
+    Function PantallaEnviarEmail(EmailOrigen, EmailDestino, HostSMTP, PuertoSMTP,
+                           UsuarioSMTP, PassSMTP, Titulo, Cuerpo: string;
+                           DetalleCuerpo,FicherosAdjuntos: TStrings;
+                           BorrarFicherosAlEnviar, Fijo: Boolean):String;
+
+    function EnviarEmail(EmailorigenAux, EmailDestinoAux, tituloAux,
+                     PuertoSMTP, HostSMTP, UsuarioSMTP, PassSMTP, sMensaje: string;
+                     slMensaje, slFicherosAdjuntos: TStrings;
+                     RegistraEnvio:Byte;TablaSQLAux: TADOQuery;MuestraProgreo:Boolean): string;
+
+    function RegistraEMail(EmailDestino, Asunto,sMensaje:String;
+                       slMensaje, slFicherosAdjuntos: TStrings;
+                       TipoEnvio,error:String;TablaSQLAux: TADOQuery): string;
+
+
+    function MessageDlgCie(const Msg: string; DlgType: TMsgDlgType;
+                       Botones: TMsgDlgButtons; Defecto: Longint): Integer;
+    procedure DataModuleCreate(Sender: TObject);
+    procedure DataModuleDestroy(Sender: TObject);
+
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+    EmpresaenUso : String;
+    IndiceEmpresaEnUso:Integer;
+    FicheroINI   : TiniFile;//TRegIniFile;
+    StringConexion:String;
+    RutaAlbaranes,RutaFacturas,RutaTemporal : String;
+    EligeImpresora   : Integer;
+    EligeImpresoraFra: Integer;
+    EligeImpresoraCopiaFra: Integer;
+    Impresora,ImpresoraFra,ImpresoraCopiaFra : String;
+    FicheroFRF,JpgPdf     : String;
+    UsuarioLogic,ProgramaReaderPdf   : String;
+    SMTPEmailCOPIA,SMTPEmailYo,SMTPPuerto,SMTPUsuario,SMTPPass,SMTPAsunto,SMTPHost,
+    SMTPCuerpo1,SMTPCuerpo2,SMTPCuerpo3:String;
+    UsoEmail,RegistEmail,PrioridadEnvios:Byte;
+    FastReporDirecto,ContadorHojas : Boolean;
+    Copia :TCopia;
+    HojaEnBlanco,Plegadora : Boolean;
+    MaxErrores,RedudirJPG ,OrdenSeleccion,
+    LongitudCliente,LongitudSerieCliente,LongitudNumeroCliente  : Integer; // si no se encuantran más 6 albaranes, no imprimir la fra
+    PapelPreImpresoFacturas:boolean;
+    ColorFactura,ColorCopiaFactura,BandejaFactura,BandejaCopiaFactura:Integer;
+    IndiceEmpresaClientes:integer;
+    UtilizarEmpresaClientes:Boolean;
+    EmpresaClientes:string;
+    TrabajoConCadenas: Boolean;
+  end;
+
+var
+  ModuloDatos: TModuloDatos;
+  NombreFicheoIni:String;
+implementation
+
+uses MessagedlgCieForm, AspectoForm, Funciones, EnviarEmailForm, PopUpForm;
+
+{$R *.dfm}
+
+//------------------------------------------------------------------------------
+procedure TModuloDatos.LeerIni;
+var kk : String;
+begin
+  JpgPdf         :=FicheroINI.ReadString('Parametros','JpgPdf','J');
+  ProgramaReaderPdf:=FicheroINI.ReadString('Parametros','ProgramaReaderPdf','');
+  EmpresaenUso   :=FicheroINI.ReadString('Parametros','Empresa','9999');
+  IndiceEmpresaenUso   :=FicheroINI.ReadInteger('Parametros','IndiceEmpresaEnUso',0);
+  StringConexion :=FicheroINI.ReadString('Parametros','Conexion','');
+  RutaAlbaranes  :=FicheroINI.ReadString('Parametros','RutaAlbaranes','');
+  RutaFacturas   :=FicheroINI.ReadString('Parametros','RutaFacturas','');
+  RutaTemporal   :=FicheroINI.ReadString('Parametros','RutaTemporal','');
+
+  EligeImpresora :=FicheroINI.ReadInteger('Parametros','ComoPrn',0);
+  EligeImpresoraFra :=FicheroINI.ReadInteger('Parametros','ComoPrnFra',0);
+  EligeImpresoraCopiaFra :=FicheroINI.ReadInteger('Parametros','ComoPrnCopiaFra',0);
+  LongitudCliente:=FicheroINI.ReadInteger('Parametros','LongitudCliente',15);
+  LongitudSerieCliente:=FicheroINI.ReadInteger('Parametros','LongitudSerieCliente',10);
+  LongitudNumeroCliente:=FicheroINI.ReadInteger('Parametros','LongitudNumeroCliente',10);
+  Impresora      :=FicheroINI.ReadString('Parametros','Impresora','');
+  ImpresoraFra   :=FicheroINI.ReadString('Parametros','ImpresoraFra','');
+  ImpresoraCopiaFra   :=FicheroINI.ReadString('Parametros','ImpresoraCopiaFra','');
+  FicheroFRF     :=FicheroINI.ReadString('Parametros','FicheroFRF','');
+  FastReporDirecto:=FicheroINI.ReadBool('Parametros','FastReporDirecto',True);
+  SMTPEmailCOPIA :=FicheroINI.ReadString('Internet','SMTPEmailCOPIA','');
+  SMTPEmailYo    :=FicheroINI.ReadString('Internet','SMTPEmailYo','');
+  SMTPPuerto     :=FicheroINI.ReadString('Internet','SMTPPuerto','25');
+  SMTPUsuario    :=FicheroINI.ReadString('Internet','SMTPUsuario','');
+  SMTPPass       :=FicheroINI.ReadString('Internet','SMTPPass','');
+  SMTPAsunto     :=FicheroINI.ReadString('Internet','SMTPAsunto','');
+  SMTPCuerpo1    :=FicheroINI.ReadString('Internet','SMTPCuerpo1','');
+  SMTPCuerpo2    :=FicheroINI.ReadString('Internet','SMTPCuerpo2','');
+  SMTPCuerpo3    :=FicheroINI.ReadString('Internet','SMTPCuerpo3','');
+  SMTPHost       :=FicheroINI.ReadString('Internet','SMTPHost','');
+  UsoEmail       :=FicheroINI.ReadInteger('Parametros','Uso Email',0);
+  RegistEmail    :=FicheroINI.ReadInteger('Parametros','Registra EMail',1);
+  PrioridadEnvios:=FicheroINI.ReadInteger('Parametros','PrioridadEnvios',1);
+  UsuarioLogic   :=FicheroINI.ReadString('Internet','UsuarioLogic','');
+//  SMTPPass       :=Funciones.Desencriptar(SMTPPass,80);
+  SMTPPass       :=Funciones.DesencriptarCIE(SMTPPass);
+
+  //showmessage(SmtpPass);
+  
+  kk:= Funciones.desencriptar(SMTPPass,80);
+  Copia.FontName := FicheroINI.ReadString('Copia','FontName','Time New Roman');
+//  Copia.FontStyle:= FicheroINI.ReadString('Copia','FontStyle','');
+  Copia.FontSize := FicheroINI.ReadInteger('Copia','FontSize',80);
+  Copia.Angulo   := FicheroINI.ReadInteger('Copia','Angulo',45);
+  Copia.Texto    := FicheroINI.ReadString('Copia','Texto','Copia');
+  Copia.Color    := FicheroINI.ReadInteger('Copia','Color',clSilver);
+  Copia.Orden    := FicheroINI.ReadInteger('Copia','Orden',0);
+
+  HojaEnBlanco   := FicheroINI.ReadBool('Parametros','HojaEnBlanco',False);
+  Plegadora      := FicheroINI.ReadBool('Parametros','Plegadora',False);
+  ContadorHojas  := FicheroINI.ReadBool('Parametros','ContadorHojas',True);
+
+  MaxErrores     := FicheroINI.ReadInteger('Errores','Max Num Errores',99);
+  RedudirJPG     := FicheroINI.ReadInteger('Errores','Redudir JPG',99);
+  OrdenSeleccion := FicheroINI.ReadInteger('Parametros','OrdenSQL',0);
+
+  PapelPreImpresoFacturas:= FicheroINI.ReadBool('Parametros','PapelPreImpresoFacturas',False);
+
+  ColorFactura:=FicheroINI.ReadInteger('Parametros','ColorFactura',0);
+  ColorCopiaFactura:=FicheroINI.ReadInteger('Parametros','ColorCopiaFactura',0);
+  BandejaFactura:=FicheroINI.ReadInteger('Parametros','BandejaFactura',0);
+  BandejaCopiaFactura:=FicheroINI.ReadInteger('Parametros','BandejaCopiaFactura',0);
+
+  IndiceEmpresaClientes:=FicheroINI.ReadInteger('Parametros','IndiceEmpresaClientes',0);
+
+  UtilizarEmpresaClientes:=FicheroINI.ReadBool('Parametros','UtilizarEmpresaClientes',false);
+
+  EmpresaClientes:=FicheroINI.ReadString('Parametros','EmpresaClientes','1');
+
+  // JAU - 24/09/2013
+  TrabajoConCadenas:=FicheroINI.ReadBool('Parametros','TrabajoConCadenas',False);
+
+  RepasaRutaTemporales;
+end;
+//------------------------------------------------------------------------------
+procedure TModuloDatos.RepasaRutaTemporales;
+begin
+  if RutaTemporal=''
+    then RutaTemporal:=extractfiledir(application.ExeName)+'\temp' ;
+  ForceDirectories(RutaTemporal);
+end;
+//------------------------------------------------------------------------------
+procedure TModuloDatos.EscribeIni;
+var kk:String;
+begin
+  FicheroINI.WriteString('Parametros','JpgPdf',JpgPdf);
+  FicheroINI.WriteString('Parametros','ProgramaReaderPdf',ProgramaReaderPdf);
+  FicheroINI.WriteString('Parametros','Empresa',EmpresaenUso);
+  FicheroINI.WriteInteger('Parametros','IndiceEmpresaEnUso',IndiceEmpresaenUso);
+  FicheroINI.WriteString('Parametros','Conexion',StringConexion);
+  FicheroINI.WriteString('Parametros','RutaAlbaranes',RutaAlbaranes);
+  FicheroINI.WriteString('Parametros','RutaFacturas',RutaFacturas);
+  FicheroINI.WriteString('Parametros','RutaTemporal',RutaTemporal);
+  FicheroINI.WriteInteger('Parametros','ComoPrn',EligeImpresora);
+  FicheroINI.WriteInteger('Parametros','ComoPrnFra',EligeImpresoraFra);
+   FicheroINI.WriteInteger('Parametros','ComoPrnCopiaFra',EligeImpresoraCopiaFra);
+
+  FicheroINI.WriteInteger('Parametros','LongitudCliente',LongitudCliente);
+  FicheroINI.WriteInteger('Parametros','LongitudSerieCliente',LongitudSerieCliente);
+  FicheroINI.WriteInteger('Parametros','LongitudNumeroCliente',LongitudNumeroCliente);
+
+  FicheroINI.WriteString('Parametros','Impresora',Impresora);
+  FicheroINI.ReadInteger('Parametros','OrdenSQL',OrdenSeleccion);
+  FicheroINI.WriteString('Parametros','ImpresoraFra',ImpresoraFra);
+  FicheroINI.WriteString('Parametros','ImpresoraCopiaFra',ImpresoraCopiaFra);
+  FicheroINI.WriteString('Parametros','FicheroFRF',FicheroFRF);
+  FicheroINI.WriteBool('Parametros','FastReporDirecto',FastReporDirecto);
+  FicheroINI.WriteString('Internet','SMTPEmailCOPIA',SMTPEmailCOPIA);
+  FicheroINI.WriteString('Internet','SMTPEmailYo',SMTPEmailYo);
+  FicheroINI.WriteString('Internet','SMTPPuerto',SMTPPuerto);
+  FicheroINI.WriteString('Internet','SMTPUsuario',SMTPUsuario);
+  //FicheroINI.WriteString('Internet','SMTPPass',Funciones.encriptar(SMTPPass,80));
+  FicheroINI.WriteString('Internet','SMTPPass',Funciones.encriptarCIE(SMTPPass));
+  kk:= Funciones.encriptar(SMTPPass,80);
+  kk:= Funciones.desencriptar(kk,80);
+  FicheroINI.WriteString('Internet','SMTPAsunto',SMTPAsunto);
+  FicheroINI.WriteString('Internet','SMTPCuerpo1',SMTPCuerpo1);
+  FicheroINI.WriteString('Internet','SMTPCuerpo2',SMTPCuerpo2);
+  FicheroINI.WriteString('Internet','SMTPCuerpo3',SMTPCuerpo3);
+  FicheroINI.WriteString('Internet','SMTPHost',SMTPHost);
+  FicheroINI.WriteInteger('Parametros','Uso Email',UsoEmail);
+  FicheroINI.WriteInteger('Parametros','Registra EMail',RegistEmail);
+  FicheroINI.WriteInteger('Parametros','PrioridadEnvios',PrioridadEnvios);
+  FicheroINI.WriteString('Internet','UsuarioLogic',UsuarioLogic);
+
+  FicheroINI.WriteString('Copia','FontName',Copia.FontName);
+ // FicheroINI.WriteString('Copia','FontStyle',Copia.FontStyle);
+  FicheroINI.WriteInteger('Copia','FontSize',Copia.FontSize);
+  FicheroINI.WriteInteger('Copia','Angulo',Copia.Angulo);
+  FicheroINI.WriteString('Copia','Texto',Copia.Texto);
+  FicheroINI.WriteFloat('Copia','Color',Copia.Color);
+  FicheroINI.WriteInteger('Copia','Orden',Copia.Orden);
+
+  FicheroINI.WriteBool('Parametros','HojaEnBlanco',HojaEnBlanco);
+  FicheroINI.WriteBool('Parametros','Plegadora',Plegadora);
+  FicheroINI.WriteBool('Parametros','ContadorHojas',ContadorHojas);
+
+  FicheroINI.WriteInteger('Errores','Max Num Errores',MaxErrores);
+  FicheroINI.WriteInteger('Errores','Redudir JPG',RedudirJPG);
+
+  FicheroINI.WriteBool('Parametros','PapelPreImpresoFacturas',PapelPreImpresoFacturas);
+
+  FicheroINI.WriteInteger('Parametros','ColorFactura',ColorFactura);
+  FicheroINI.WriteInteger('Parametros','ColorCopiaFactura',ColorCopiaFactura);
+  FicheroINI.WriteInteger('Parametros','BandejaFactura',BandejaFactura);
+  FicheroINI.WriteInteger('Parametros','BandejaCopiaFactura',BandejaCopiaFactura);
+
+  FicheroINI.WriteInteger('Parametros','IndiceEmpresaClientes',IndiceEmpresaClientes);
+
+  FicheroINI.WriteBool('Parametros','UtilizarEmpresaClientes',UtilizarEmpresaClientes);
+
+  FicheroINI.WriteString('Parametros','EmpresaClientes',EmpresaClientes);
+
+  // JAU - 24/09/2013
+  FicheroINI.WriteBool('Parametros','TrabajoConCadenas',TrabajoConCadenas);
+
+
+end;
+//------------------------------------------------------------------------------
+function TModuloDatos.MessageDlgCie(const Msg: string; DlgType: TMsgDlgType;
+                       Botones: TMsgDlgButtons; Defecto: Longint): Integer;//array of TMsgDlgBtn
+var i,x,y :Integer;
+    dialogUnit:TPoint;
+    Bot:TMsgDlgBtn;
+//--------------------------------------
+  procedure ponboton(Boton,tag,NrGlyph:Integer;caption:String;Imagen:TImage);
+  Var Btn :TspeedButton;
+  begin
+    case boton of
+      1:Btn := FormMessageDlgCIE.BitBtn1;
+      2:Btn := FormMessageDlgCIE.BitBtn2;
+      3:Btn := FormMessageDlgCIE.BitBtn3;
+      4:Btn := FormMessageDlgCIE.BitBtn4;
+      5:Btn := FormMessageDlgCIE.BitBtn5;
+      6:Btn := FormMessageDlgCIE.BitBtn6;
+    end;
+
+
+    Case Tag of
+      mrOk     : FormMessageDlgCIE.Ok.Tag     :=Boton;
+      mrCancel : FormMessageDlgCIE.Cancelar.Tag :=Boton;
+    end;
+
+    Btn.Caption:=Caption;
+    Btn.tag:=tag;
+    Btn.Visible:=true;
+    Btn.NumGlyphs:=NrGlyph;
+    Btn.Glyph:=Imagen.Picture.Bitmap;
+    if Defecto=tag
+      then begin
+             Btn.Font.Style := [fsBold];
+             FormMessageDlgCIE.Ok.Tag:=Tag;
+           end
+      else if boton = 1
+           then Btn.Font.Style := [];
+  end;
+//--------------------------------------
+begin
+  Result:=0;  i:=0;  x:=20;
+
+  Application.CreateForm(TFormMessageDlgCIE, FormMessageDlgCIE);
+
+  FormMessageDlgCIE.Caption:='';
+
+  FormMessageDlgCIE.Ok.Modalresult:=Defecto;
+  FormMessageDlgCIE.Label1.caption:=Msg;
+
+  case DlgType of
+    mtInformation : FormMessageDlgCIE.image1.Picture:=FormAspecto.Informacion.Picture;
+    mtError       : FormMessageDlgCIE.image1.Picture:=FormAspecto.Informacion.Picture;
+    mtWarning     : FormMessageDlgCIE.image1.Picture:=FormAspecto.Caution.Picture;
+    mtConfirmation: FormMessageDlgCIE.image1.Picture:=FormAspecto.Pregunta.Picture;
+    else FormMessageDlgCIE.image1.Picture:=NIL;
+  end;//del case
+
+  for Bot := Low(TMsgDlgBtn) to High(TMsgDlgBtn) do
+      if Bot in Botones
+        then begin
+               inc(i);
+               case Bot of
+                  // si se cambia la Picture acordarse de ajustar el tercer parametro de Ponboton
+                  // al numero de imagenes contenidas en la Picture
+                  mbOk	     : ponboton(i,mrOk,2,'Ok',FormAspecto.Aceptar2);
+                  mbCancel   : ponboton(i,mrCancel,2,'Cancelar',FormAspecto.Cancelar2);
+                  mbYes	     : ponboton(i,mrYes,2,'Sí',FormAspecto.Aceptar2);
+                  mbNo	     : ponboton(i,mrNo,2,'No',FormAspecto.Cancelar2);
+                  mbAbort    : ponboton(i,mrAbort,2,'Abortar',FormAspecto.Cancelar2);
+                  mbRetry    : ponboton(i,mrRetry,1,'Reintentar',FormAspecto.Reintentar);
+                  mbIgnore   : ponboton(i,mrIgnore,1,'Ignorar',NIL);
+                  mbAll	     : ponboton(i,mrAll,1,'Todos',NIL);
+                  mbNoToAll  : ponboton(i,mrNoToAll,1,'No a Todo',NIL);
+                  mbYesToAll : ponboton(i,mrYesToAll,1,'Sí a Todo',FormAspecto.SiaTodo);
+                end;//del case
+             end;
+
+  Result := FormMessageDlgCIE.showmodal;
+  FormMessageDlgCIE.free;
+end;
+
+procedure TModuloDatos.Conectar(Pide:Boolean);
+begin
+  if Logic.Connected then
+    Logic.Connected:=false;
+
+  if (Pide) or (StringConexion='') then
+  begin
+    EditConnectionString(Logic);
+    StringConexion:= Logic.ConnectionString;
+  end;
+  Logic.ConnectionString:= StringConexion;
+  if Logic.ConnectionString > '' then
+    Logic.Connected:=true;
+  if Logic.Connected=False then
+  begin
+    ModuloDatos.MessageDlgCie('NO existe Conexión', mtError,[mbCancel],0);
+    Application.Terminate;
+  end;
+  StringConexion:= Logic.ConnectionString;
+end;
+
+procedure TModuloDatos.DataModuleCreate(Sender: TObject);
+begin
+  NombreFicheoIni := Application.ExeName;
+  NombreFicheoIni := ChangeFileExt(NombreFicheoIni,'Ini');
+  FicheroIni      := TIniFile.Create (NombreFicheoIni);//TregIniFile.Create('FraReportCie');
+  LeerIni;
+  Conectar(False);
+  FormEnviarEmail:=NIL;
+end;
+
+procedure TModuloDatos.DataModuleDestroy(Sender: TObject);
+begin
+   EscribeIni;
+   FicheroIni.Free;
+end;
+
+function TModuloDatos.ExisteImpresoraWin(Impresora: string): Integer;
+begin
+  if (Printer.Printers.Count = 0)
+    then Result := -1
+  else result := Printer.Printers.IndexOf(Impresora);
+end;
+//------------------------------------------------------------------------------
+Function TModuloDatos.PantallaEnviarEmail(EmailOrigen, EmailDestino, HostSMTP, PuertoSMTP,
+                           UsuarioSMTP, PassSMTP, Titulo, Cuerpo: string;
+                           DetalleCuerpo,FicherosAdjuntos: TStrings;
+                           BorrarFicherosAlEnviar, Fijo: Boolean):String;
+var EnvioOK: Boolean;
+begin
+
+  if ((Trim(EmailDestino) = '') or (Trim(HostSMTP) = '')) then
+  begin
+    MessageDlgCIE('Se debe indicar la Dirección de Correo Electrónico Destino y/o Máquina SMTP.', mtWarning, [mbYes], 0);
+    exit;
+  end;
+
+  if Trim(PuertoSMTP) = '' then PuertoSMTP := '25';
+  if FormEnviarEmail = nil then
+  begin
+    Application.CreateForm(TFormEnviarEmail, FormEnviarEmail);
+    FormEnviarEmail._EmailOrigen  := EmailOrigen;
+    FormEnviarEmail._EmailDestino := EmailDestino;
+    FormEnviarEmail._HostSMTP     := HostSMTP;
+    FormEnviarEmail._PuertoSMTP   := PuertoSMTP;
+    FormEnviarEmail._UsuarioSMTP  := UsuarioSMTP;
+    FormEnviarEmail._PassSMTP     := PassSMTP;
+    FormEnviarEmail._Titulo       := Titulo;
+    FormEnviarEmail._Mensaje      := Cuerpo;
+    FormEnviarEmail._slMensaje    :=DetalleCuerpo;
+    FormEnviarEmail._slFicherosAdjuntos:=FicherosAdjuntos;
+  end;
+
+  if Fijo
+    then begin
+           FormEnviarEmail.EnviarButton1.Enabled:=False;
+           FormEnviarEmail.Show;
+           EnvioOK := FormEnviarEmail.ReEnviarFicheros;
+         end
+    else begin
+           FormEnviarEmail.EnviarButton1.Enabled:=True;
+           FormEnviarEmail.ShowModal;
+           if FormEnviarEmail.ModalResult = mrOk
+             then EnvioOK := True
+             else EnvioOK := False;
+         end;
+  FormEnviarEmail.Free;
+  FormEnviarEmail := nil;
+  if ((EnvioOK) and (BorrarFicherosAlEnviar))
+    then BorrarArchivosTemporalesInternet(FicherosAdjuntos);
+
+  FormEnviarEmail.free;
+  FormEnviarEmail:=NIL;
+end;
+//------------------------------------------------------------------------------
+function TModuloDatos.EnviarEmail(EmailorigenAux, EmailDestinoAux, tituloAux,
+                     PuertoSMTP, HostSMTP, UsuarioSMTP, PassSMTP, sMensaje: string;
+                     slMensaje, slFicherosAdjuntos: TStrings;
+                     RegistraEnvio:Byte;TablaSQLAux: TADOQuery;MuestraProgreo:Boolean): string;
+// RegistraEnvio =1 Registra siempre, 0 Nunca, 2 si bien 3 si mal
+var
+  i: Integer;
+  sError: string;
+  servidorSmtp: TIdSMTP;
+  mensajeCorreo: TIdMessage;
+  TipoEnvio:String;
+begin
+  RegistraEnvio:=ModuloDatos.RegistEmail;
+  result:='';
+  sError := '';
+  if MuestraProgreo
+  then PopUpCie(60000,'Conectando...');
+
+  servidorSmtp := TIdSMTP.Create(nil);
+  mensajeCorreo := TIdMessage.Create(nil);
+  with mensajeCorreo do
+  begin
+    Subject := TituloAux;
+//    Body.Text := 'Cuerpo del correo';
+    if (slMensaje <> nil) and (slMensaje.Count > 0)
+      then Body.AddStrings(slMensaje)
+      else Body.Add(sMensaje);
+    From.Address := EmailorigenAux;
+    ReplyTo.EMailAddresses := EmailorigenAux;
+
+    // JAU - 22/01/2021 - Añadimos una dirección de copias
+    BccList.EMailAddresses := Trim(SMTPEmailCOPIA);
+
+    Recipients.EMailAddresses := EmailDestinoAux;
+    ReceiptRecipient.Text := '';
+    Priority := TidMessagePriority(mpHighest);
+    if (slFicherosAdjuntos <> nil) and (slFicherosAdjuntos.Count > 0)
+      then begin
+            i := 0;
+            while i < slFicherosAdjuntos.Count do
+              begin
+                if FileExists(slFicherosAdjuntos.Strings[i])
+                  then  TIdAttachmentFile.Create(MessageParts, slFicherosAdjuntos.Strings[i]);
+                inc(i);
+              end;
+            end;
+          end;
+
+    with servidorSmtp do
+     begin
+       Port := StrToInt(PuertoSMTP);
+       Host := HostSMTP;
+       if Trim(UsuarioSMTP) <> '' then UserNAME := UsuarioSMTP;
+       if Trim(PassSMTP) <> '' then Password := PassSMTP;
+       if ((Trim(UsuarioSMTP) <> '') and (Trim(PassSMTP) <> '')) then
+         AuthType := sAtDefault;
+//         AuthenticationType := AtLogin;
+       AuthType := satDefault; //atNone;
+       try
+         Connect();
+         try
+          if MuestraProgreo
+            then PopUpCie(0,'Enviando datos...');
+
+           Send(mensajeCorreo);
+         finally
+         Disconnect;
+       end;
+       except
+//        on E: EIdProtocolReplyError do
+//          sError := 'Incorrecto el email o el usuario o la password. Error(' + E.Message + ')';
+        on E: EFOpenError do
+          sError := 'Fichero Adjunto desconocido o erróneo. Error(' + E.Message + ')';
+//        on E: EIdSocketError do
+//          sError := 'Host desconocido o incorrecto. Error(' + IntToStr(E.LastError) + ')';
+        on E: Exception do
+          sError := ' Error(' + E.Message + ')';
+        else begin
+               sError := 'Fallo en el envio de email (error no perteneciente al protocolo).';
+               raise; //para que muestre el error.
+             end;
+       end;
+     end;
+     if servidorSmtp.Connected then servidorSmtp.Disconnect;
+     if MuestraProgreo
+        then PopUpCie(-1,'Desconectando...');
+
+     servidorSmtp.Free;
+     mensajeCorreo.Free;
+
+    if not (sError = '')
+      then begin
+             EscribeFichero('ErrEMail.txt', 'Email dest:'
+                            + EmailDestinoAux + '  PuertoSMTP:' + PuertoSMTP + '  UsuarioSMTP:'
+                            + UsuarioSMTP + '  Con:' + PassSMTP + ' Desc. Error:' + sError);
+            if MuestraProgreo
+               then PopUpCie(500,'ERROR : '+SError);
+           end;
+    Result := sError;
+    if sError=''
+      then TipoEnvio:='E'
+      else TipoEnvio:='R';
+
+{    case RegistraEnvio of
+      0 : begin // Nunca registra
+          end;
+      1 : begin // Registra siempre, l
+            RegistraEMail(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+          end;
+      2 : begin // Registra si bien
+            if sError=''
+              then  RegistraEMail(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+          end;
+      3 : begin // Registra si mal
+            if sError<>''
+              then  RegistraEMail(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+
+          end;
+    end;
+}
+    case ModuloDatos.RegistEmail of
+      0 : begin // Nunca registra
+          end;
+      1 : begin // Registra siempre, l
+            RegistraEMail_2(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+          end;
+      2 : begin // Registra si bien
+            if sError=''
+              then  RegistraEMail_2(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+          end;
+      3 : begin // Registra si mal
+            if sError<>''
+              then  RegistraEMail_2(EmailDestinoAux, tituloAux,sMensaje,
+                          slMensaje, slFicherosAdjuntos,
+                          TipoEnvio,serror,TablaSQLAux);
+          end;
+
+    end;
+
+end;
+
+//------------------------------------------------------------------------------
+function TModuloDatos.RegistraEMail(EmailDestino, Asunto,sMensaje:String;
+                       slMensaje, slFicherosAdjuntos: TStrings;
+                       TipoEnvio,error:String;TablaSQLAux: TADOQuery): string;
+
+                       //TipoEnvio [E]nviado, [2]reenviado, e[R]ror
+var StrSQL,FicherosAdjuntos,Mensaje,Fecha,Hora,Cliente,RazonSocial,
+    Enviado,Empresa,Usuario: String;
+    i:Integer;
+
+begin
+  if TablaSQLAux=NIl
+    then exit;
+  error  := 'santos';
+  Fecha  :=fechainglesa(Date());
+  fecha  :='#'+Fecha+'#';
+  hora   := formatdatetime('hh:nn:ss',time());
+  Empresa:= Funciones.DimeCadena(ModuloDatos.EmpresaenUso,1);
+  Usuario:= Funciones.DimeCadena(ModuloDatos.UsuarioLogic,1);
+  if Error=''
+    then Enviado:='True'
+    else Enviado:='False';
+  if TrabajoConCadenas then
+    Cliente   :=ModuloDatos.TablaFacturas.fieldbyName('CieClienteCadena').asString
+  else
+    Cliente   :=ModuloDatos.TablaFacturas.fieldbyName('CodigoCliente').asString;
+  RazonSocial:=ModuloDatos.TablaFacturas.fieldbyName('RazonSocial').asString;
+
+  if EmailDestino=''
+    then EmailDestino:='Vacio';
+  FicherosAdjuntos:='';  Mensaje:=sMensaje;         i := 0;
+  if (slFicherosAdjuntos <> nil) and (slFicherosAdjuntos.Count > 0)
+    then for i:=0 to slFicherosAdjuntos.Count-1 do
+           FicherosAdjuntos:=FicherosAdjuntos+';'+ExtractFileName( slFicherosAdjuntos.Strings[i]);
+  if (slMensaje <> nil) and (slMensaje.Count > 0)
+    then for i:=0 to slMensaje.Count-1 do
+           Mensaje:=Mensaje+';'+slMensaje.Strings[i];
+  Mensaje:=Funciones.CambiarSubCadena(Mensaje,#13+#10,'-');
+  if length(Mensaje)>250
+    then Mensaje:=Funciones.PrimerasLetras(Mensaje,249);
+  StrSQL:=Funciones.ConstruyeInsertInto('CieEnvios',
+      ['CodigoCliente','RazonSocial','CodigoEmpresa','idDelegacion','EMail1','Asunto','Cuerpo','fecha','Adjuntos','Usuario','Enviado','Error'],
+      [Cliente, RazonSocial,Empresa,'1', EmailDestino, Asunto,  Mensaje, 'NOW',FicherosAdjuntos,Usuario, Enviado,Error],
+      ['C', 'C','N','C', 'C', 'C',  'C', 'E','C','N', 'N','C']);
+  StrSQL:=    CadenaSQLServer(StrSQL);
+  EjecutaSQLADO(StrSQL,TablaSQLAux);
+end;
+//------------------------------------------------------------------------------
+procedure TModuloDatos.PopUpCie(tiempo: Integer;Texto1: string);
+//tiempo = 1..infinito -> tiempo que dura la pantalla
+//tiempo = 0 solo cambia el caption
+//tiempo = -1 cierra el formulario
+begin
+ if FormMensagePop=Nil
+    then Application.CreateForm(TFormMensagePop, FormMensagePop);
+ if Tiempo > 0
+    then  FormMensagePop.Duracion      :=Tiempo;
+ FormMensagePop.Label1.Caption:=Texto1;
+ application.ProcessMessages;
+ case tiempo of
+   0:;
+   -1: FormMensagePop.close
+   else FormMensagePop.show;
+ end;
+end;
+
+
+end.

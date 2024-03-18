@@ -1,0 +1,133 @@
+object ModuloDatos: TModuloDatos
+  OldCreateOrder = False
+  OnCreate = DataModuleCreate
+  OnDestroy = DataModuleDestroy
+  Height = 241
+  Width = 370
+  object Logic: TADOConnection
+    CommandTimeout = 5
+    ConnectionString = 
+      'Provider=SQLOLEDB.1;Integrated Security=SSPI;Persist Security In' +
+      'fo=False;Initial Catalog=Logic;Data Source=SERVERCIE;Use Procedu' +
+      're for Prepare=1;Auto Translate=True;Packet Size=4096;Workstatio' +
+      'n ID=PORTATILSANTOS;Use Encryption for Data=False;Tag with colum' +
+      'n collation when possible=False;'
+    ConnectionTimeout = 25
+    LoginPrompt = False
+    Mode = cmShareDenyNone
+    Provider = 'SQLOLEDB.1'
+    Left = 32
+    Top = 16
+  end
+  object TablaAux: TADOQuery
+    Connection = Logic
+    Parameters = <>
+    Left = 152
+    Top = 16
+  end
+  object TablaFacturas: TADOQuery
+    Connection = Logic
+    CursorType = ctStatic
+    Parameters = <>
+    SQL.Strings = (
+      
+        'SELECT     ResumenCliente.RazonSocial, ResumenCliente.CodigoEmpr' +
+        'esa, ResumenCliente.SerieFactura, ResumenCliente.NumeroFactura, '
+      
+        '                      ResumenCliente.FechaFactura, ResumenClient' +
+        'e.CodigoCliente, ResumenCliente.EjercicioFactura, ResumenCliente' +
+        '.IdDelegacion, '
+      
+        '                      ResumenCliente.CodigoEmpresa AS Expr1, Cli' +
+        'entes.Email1, Clientes.Email2, Clientes.CIEEnvioFra, '
+      
+        '                      '#39'C:\KK\'#39' + ResumenCliente.CodigoCliente + ' +
+        #39'\'#39' + LTRIM(RTRIM(STR(ResumenCliente.EjercicioFactura))) '
+      
+        '                      + '#39'\Fra\'#39' + LTRIM(RTRIM(STR(ResumenCliente' +
+        '.NumeroFactura))) + '#39'.Pdf'#39' AS Ruta, LcDOCPdf.DOCNombrePdfLc as F' +
+        'icheroPdf'
+      'FROM         ResumenCliente LEFT OUTER JOIN'
+      
+        '                      LcDOCPdf ON ResumenCliente.CodigoEmpresa =' +
+        ' LcDOCPdf.CodigoEmpresa AND ResumenCliente.CodigoCliente = LcDOC' +
+        'Pdf.CodigoCliente AND '
+      
+        '                      ResumenCliente.EjercicioFactura = LcDOCPdf' +
+        '.EjercicioDocumentoLc AND ResumenCliente.SerieFactura = LcDOCPdf' +
+        '.SerieDocumentoLc AND '
+      
+        '                      ResumenCliente.NumeroFactura = LcDOCPdf.Nu' +
+        'meroDocumentoLc LEFT OUTER JOIN'
+      
+        '                      Clientes ON ResumenCliente.CodigoEmpresa =' +
+        ' Clientes.CodigoEmpresa AND ResumenCliente.CodigoCliente = Clien' +
+        'tes.CodigoCliente'
+      
+        'WHERE     (ResumenCliente.CodigoCliente BETWEEN '#39'0'#39' AND '#39'9999999' +
+        '99'#39') AND (ResumenCliente.FechaFactura BETWEEN '#39'31/08/07'#39' AND '#39'31' +
+        '/08/07'#39') AND '
+      
+        '                      (ResumenCliente.NumeroFactura BETWEEN 0 AN' +
+        'D 999999999) AND (ResumenCliente.CodigoEmpresa = 1) AND '
+      
+        '                      (ResumenCliente.SerieFactura BETWEEN '#39'  '#39' ' +
+        'AND '#39'ZZ'#39')')
+    Left = 32
+    Top = 80
+  end
+  object SourceFacturas: TDataSource
+    DataSet = TablaFacturas
+    OnDataChange = SourceFacturasDataChange
+    Left = 32
+    Top = 128
+  end
+  object TablaAlbaranes: TADOQuery
+    Connection = Logic
+    CursorType = ctStatic
+    Parameters = <>
+    SQL.Strings = (
+      
+        'SELECT  EjercicioAlbaran , SerieAlbaran,  NumeroAlbaran , FechaA' +
+        'lbaran '
+      'FROM    CabeceraAlbaranCliente')
+    Left = 104
+    Top = 80
+    object TablaAlbaranesEjercicioAlbaran: TSmallintField
+      FieldName = 'EjercicioAlbaran'
+    end
+    object TablaAlbaranesSerieAlbaran: TStringField
+      FieldName = 'SerieAlbaran'
+      Size = 10
+    end
+    object TablaAlbaranesNumeroAlbaran: TIntegerField
+      FieldName = 'NumeroAlbaran'
+    end
+    object TablaAlbaranesFechaAlbaran: TDateTimeField
+      FieldName = 'FechaAlbaran'
+    end
+  end
+  object SourceAlbaranes: TDataSource
+    DataSet = TablaAlbaranes
+    Left = 104
+    Top = 128
+  end
+  object TablaEmail: TADOQuery
+    Connection = Logic
+    CursorType = ctStatic
+    DataSource = SourceFacturas
+    Parameters = <>
+    SQL.Strings = (
+      'SELECT     *'
+      'FROM        CieEnvios'
+      'WHERE     (CodigoCliente = 1)')
+    Left = 216
+    Top = 24
+  end
+  object TablaAux2: TADOQuery
+    Connection = Logic
+    Parameters = <>
+    Left = 176
+    Top = 80
+  end
+end

@@ -1,0 +1,60 @@
+[Parametros]
+JpgPdf=J
+ProgramaReaderPdf=
+Empresa=12 - QUALYNET RAGO 2000 S.L.
+IndiceEmpresaEnUso=2
+Conexion=Provider=SQLOLEDB.1;Password=GRUPOCIE;Persist Security Info=True;User ID=sa;Initial Catalog=SAGEDB_MICROSERVICE;Data Source=192.168.120.7;Use Procedure for Prepare=1;Auto Translate=True;Packet Size=4096;Workstation ID=PORTATILSANTOS;Use Encryption for Data=False;Tag with column collation when possible=False
+RutaAlbaranes=C:\proyectos\delphi\sageretail\bertomeufacturas\albaranes\%.jpg
+RutaFacturas=C:\proyectos\delphi\sageretail\bertomeufacturas\facturas\
+RutaTemporal=C:\proyectos\delphi\sageretail\bertomeufacturas\temp
+ComoPrn=0
+ComoPrnFra=1
+ComoPrnCopiaFra=0
+LongitudCliente=15
+LongitudSerieCliente=10
+LongitudNumeroCliente=10
+Impresora=RICOH Aficio MP C3001 PCL 6
+ImpresoraFra=RICOH Aficio MP C3001 PCL 6
+ImpresoraCopiaFra=
+FicheroFRF=C:\proyectos\delphi\sageretail\bertomeufacturas\Albaranes_2.fr3
+FastReporDirecto=1
+Uso Email=0
+Registra EMail=1
+PrioridadEnvios=1
+HojaEnBlanco=0
+Plegadora=0
+ContadorHojas=1
+PapelPreImpresoFacturas=0
+ColorFactura=0
+ColorCopiaFactura=0
+BandejaFactura=0
+BandejaCopiaFactura=0
+IndiceEmpresaClientes=-1
+UtilizarEmpresaClientes=0
+EmpresaClientes=
+TrabajoConCadenas=0
+[Internet]
+SMTPEmailCOPIA=
+SMTPEmailYo=jvalls@grupocie.com
+SMTPPuerto=587
+SMTPUsuario=jvalls@grupocie.com
+SMTPPass=9@21396񇉅"8"
+SMTPAsunto=
+SMTPCuerpo1=
+SMTPCuerpo2=
+SMTPCuerpo3=
+SMTPHost=smtp.serviciodecorreo.es
+UsuarioLogic=1 - Administrador
+Edit27=11222111
+Edit28=6463215646
+Edit29=FACTURA_%_$
+[Copia]
+FontName=Time New Roman
+FontSize=80
+Angulo=45
+Texto=Copia
+Color=12632256
+Orden=0
+[Errores]
+Max Num Errores=99
+Redudir JPG=99

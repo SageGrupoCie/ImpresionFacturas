@@ -1,0 +1,14 @@
+Email dest:jvalls@grupocie.com  PuertoSMTP:25  UsuarioSMTP:jordi.valls@grupocie.com  Con:Mom85034 Desc. Error: Error(Socket Error # 10060
+Connection timed out.)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:465  UsuarioSMTP:jvall@grupocie.com  Con:j2139DARK Desc. Error: Error(Connection Closed Gracefully.)
+Email dest:jvalls@grupocie.com  PuertoSMTP:25  UsuarioSMTP:jvall@grupocie.com  Con:j2139DARK Desc. Error: Error(Socket Error # 10060
+Connection timed out.)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:465  UsuarioSMTP:jvall@grupocie.com  Con:j2139DARK Desc. Error: Error(Connection Closed Gracefully.)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:587  UsuarioSMTP:sagecie@outlook.com  Con:GRUPOCIE2020 Desc. Error: Error(STARTTLS is required to send mail [ZR0P278CA0114.CHEP278.PROD.OUTLOOK.COM 2024-03-11T10:14:47.619Z 08DC410319B38EA6]
+)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:465  UsuarioSMTP:sagecie@outlook.com  Con:GRUPOCIE2020 Desc. Error: Error(Socket Error # 10060
+Connection timed out.)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:587  UsuarioSMTP:jvalls@grupocie.com  Con:j2139DARK Desc. Error: Error(Authentication required
+)
+Email dest:jordi.valls@grupocie.com  PuertoSMTP:587  UsuarioSMTP:jvalls@grupocie.com  Con:j2139DARK Desc. Error: Error(Authentication required
+)

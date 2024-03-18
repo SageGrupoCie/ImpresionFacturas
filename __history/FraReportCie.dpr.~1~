@@ -1,0 +1,42 @@
+program FraReportCie;
+
+uses
+  Forms,
+  Principal in 'Principal.pas' {Form1},
+  Funciones in 'Funciones.pas',
+  DatosModulo in 'DatosModulo.pas' {ModuloDatos: TDataModule},
+  ConfiguracionForm in 'ConfiguracionForm.pas' {FormConfiguracion},
+  FuncIdiom in 'FuncIdiom.pas',
+  MessagedlgCieForm in 'MessagedlgCieForm.pas' {FormMessageDlgCIE},
+  AspectoForm in 'AspectoForm.pas' {FormAspecto},
+  Resultado in 'Resultado.pas' {FormResultado},
+  SacaAvisosForm in 'SacaAvisosForm.pas' {FormSacaAvisos},
+  AcercaDeForm in 'AcercaDeForm.pas' {FormAcercaDe},
+  VisorPdf in 'VisorPdf.pas' {frmPDFViewerDemo},
+  EnviarEmailForm in 'EnviarEmailForm.pas' {FormEnviarEmail},
+  PopUpForm in 'PopUpForm.pas' {FormMensagePop},
+  FuncionesForm in 'FuncionesForm.pas',
+  ListadosForm in 'ListadosForm.pas' {FormListados},
+  InputBoxCieForm in 'InputBoxCieForm.pas' {FormInputBoxCie},
+  BuscarForm in 'BuscarForm.pas',
+  PreguntaForm in 'PreguntaForm.pas' {FormPregunta},
+  TecladoNumForm in 'TecladoNumForm.pas' {FormTecladoNumerico},
+  TxtDataSetForm in 'TxtDataSetForm.pas' {FormTxtDataset},
+  Procesando in 'Procesando.pas' {FormProcesando},
+  BuscarBotonesForm in 'BuscarBotonesForm.pas' {FormBuscarBotones},
+  TecladoForm in 'TecladoForm.pas' {FormTeclado};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TFormAspecto, FormAspecto);
+  Application.CreateForm(TModuloDatos, ModuloDatos);
+  Application.CreateForm(TFormMessageDlgCIE, FormMessageDlgCIE);
+  Application.CreateForm(TFormResultado, FormResultado);
+  Application.CreateForm(TFormSacaAvisos, FormSacaAvisos);
+  Application.CreateForm(TfrmPDFViewerDemo, frmPDFViewerDemo);
+  Application.CreateForm(TFormMensagePop, FormMensagePop);
+  Application.Run;
+end.
